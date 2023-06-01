@@ -86,10 +86,13 @@ func (s *whatsAppSystem) Connect(ctx context.Context, accountUUID string, phone 
 	client := whatsmeow.NewClient(device, nil)
 	client.AddEventHandler(func(evt any) {
 		eventHandler(accountUUID, evt)
-		switch _ := evt.(type) {
+		switch evt.(type) {
 		case *events.Disconnected:
+			s.restart(accountUUID)
 		case *events.TemporaryBan:
+			s.restart(accountUUID)
 		case *events.LoggedOut:
+			s.restart(accountUUID)
 		}
 	})
 	connection := NewConnection(accountUUID, client)
@@ -107,6 +110,15 @@ func (s *whatsAppSystem) Connect(ctx context.Context, accountUUID string, phone 
 		return err
 	}
 	return nil
+}
+
+func (s *whatsAppSystem) restart(accountUUID string) {
+	connection := s.connections.Get(accountUUID)
+	if connection == nil {
+		return
+	}
+	s.connections.Remove(accountUUID)
+	s.Connect(context.Background(), accountUUID, "", nil)
 }
 
 func (s *whatsAppSystem) qrCodeRoutine(ctx context.Context, connection *Connection, qrChan <-chan whatsmeow.QRChannelItem) {
