@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"net"
 	"qrpay-wpp/configs"
+	"qrpay-wpp/internal/api/system"
 )
 
 type Server struct {
@@ -51,8 +52,13 @@ func (s *Server) initializeAPI() error {
 		return err
 	}
 
+	wppSystem, err := system.New()
+	if err != nil {
+		return err
+	}
+
 	// Create Services
-	s.createServices()
+	s.createServices(wppSystem)
 
 	// Create Handlers
 	s.createHandlers()

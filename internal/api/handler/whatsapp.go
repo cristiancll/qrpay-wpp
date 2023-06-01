@@ -4,7 +4,6 @@ import (
 	"context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	proto "qrpay-wpp/internal/api/proto/generated"
 	"qrpay-wpp/internal/api/service"
 	"qrpay-wpp/internal/errors"
@@ -12,9 +11,9 @@ import (
 )
 
 type WhatsApp interface {
-	Get(ctx context.Context, req *proto.WhatsAppGetRequest) (*proto.WhatsAppGetResponse, error)
-	List(ctx context.Context, req *proto.VoidRequest) (*proto.WhatsAppListResponse, error)
-	QRCodeStream(req *proto.VoidRequest, stream proto.WhatsAppService_QRCodeStreamServer) error
+	Connect(ctx context.Context, req *proto.WhatsAppConnectRequest) (*proto.WhatsAppConnectResponse, error)
+	Message(ctx context.Context, req *proto.WhatsAppMessageRequest) (*proto.WhatsAppMessageResponse, error)
+	QRCode(req *proto.WhatsAppQRRequest, stream proto.WhatsAppService_QRServer) error
 	proto.WhatsAppServiceServer
 }
 
@@ -27,70 +26,37 @@ func NewWhatsApp(s service.WhatsApp) WhatsApp {
 	return &whatsApp{service: s}
 }
 
-func (h *whatsApp) Get(ctx context.Context, req *proto.WhatsAppGetRequest) (*proto.WhatsAppGetResponse, error) {
-	if req.Uuid == "" {
+func (h *whatsApp) Connect(ctx context.Context, req *proto.WhatsAppConnectRequest) (*proto.WhatsAppConnectResponse, error) {
+	if req.AccountUUID == "" {
 		return nil, status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
 	}
-	whats, err := h.service.Get(ctx, req.Uuid)
+	err := h.service.Connect(ctx, req.AccountUUID)
 	if err != nil {
 		return nil, err
 	}
-	res := &proto.WhatsAppGetResponse{
-		WhatsApp: &proto.WhatsApp{
-			Uuid:      whats.UUID,
-			Qr:        whats.QR,
-			Phone:     whats.Phone,
-			Active:    whats.Active,
-			Banned:    whats.Banned,
-			CreatedAt: timestamppb.New(whats.CreatedAt),
-			UpdatedAt: timestamppb.New(whats.UpdatedAt),
-		},
-	}
-	return res, nil
+	return &proto.WhatsAppConnectResponse{}, nil
 }
 
-func (h *whatsApp) List(ctx context.Context, _ *proto.VoidRequest) (*proto.WhatsAppListResponse, error) {
-	whatsList, err := h.service.GetAll(ctx)
+func (h *whatsApp) Message(ctx context.Context, req *proto.WhatsAppMessageRequest) (*proto.WhatsAppMessageResponse, error) {
+	if req.AccountUUID == "" {
+		return nil, status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
+	}
+	if req.To == "" {
+		return nil, status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
+	}
+	if req.Text == "" || req.Media == nil {
+		return nil, status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
+	}
+	err := h.service.Message(ctx, req.AccountUUID, req.To, req.Text, req.Media)
 	if err != nil {
 		return nil, err
 	}
-	pWhatsList := make([]*proto.WhatsApp, 0)
-	for _, whats := range whatsList {
-		pWhatsList = append(pWhatsList, &proto.WhatsApp{
-			Uuid:      whats.UUID,
-			Qr:        whats.QR,
-			Phone:     whats.Phone,
-			Scanned:   whats.Scanned,
-			Active:    whats.Active,
-			Banned:    whats.Banned,
-			CreatedAt: timestamppb.New(whats.CreatedAt),
-			UpdatedAt: timestamppb.New(whats.UpdatedAt),
-		})
-	}
-	res := &proto.WhatsAppListResponse{
-		WhatsAppList: pWhatsList,
-	}
-	return res, nil
+	return &proto.WhatsAppMessageResponse{}, nil
 }
 
-func (h *whatsApp) QRCodeStream(_ *proto.VoidRequest, stream proto.WhatsAppService_QRCodeStreamServer) error {
-	wpp, err := h.service.GetActiveWhatsApp(stream.Context())
-	if err == nil {
-		res := &proto.WhatsApp{
-			Uuid:      wpp.UUID,
-			Qr:        wpp.QR,
-			Phone:     wpp.Phone,
-			Scanned:   wpp.Scanned,
-			Active:    wpp.Active,
-			Banned:    wpp.Banned,
-			CreatedAt: timestamppb.New(wpp.CreatedAt),
-			UpdatedAt: timestamppb.New(wpp.UpdatedAt),
-		}
-		err = stream.Send(res)
-		if err != nil {
-			return err
-		}
-		return nil
+func (h *whatsApp) QRCode(req *proto.WhatsAppQRRequest, stream proto.WhatsAppService_QRServer) error {
+	if req.AccountUUID == "" {
+		return status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
 	}
 	for {
 		if stream.Context().Err() == context.Canceled {
@@ -98,24 +64,17 @@ func (h *whatsApp) QRCodeStream(_ *proto.VoidRequest, stream proto.WhatsAppServi
 		} else if stream.Context().Err() != nil {
 			break
 		}
-		wpp, err = h.service.GetUnscannedWhatsApp(stream.Context())
+		qr, err := h.service.GetQRCode(req.AccountUUID)
 		if err != nil {
 			s := status.Convert(err)
 			if s.Code() == codes.NotFound {
-				time.Sleep(5 * time.Second)
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 			return err
 		}
-		res := &proto.WhatsApp{
-			Uuid:      wpp.UUID,
-			Qr:        wpp.QR,
-			Phone:     wpp.Phone,
-			Scanned:   wpp.Scanned,
-			Active:    wpp.Active,
-			Banned:    wpp.Banned,
-			CreatedAt: timestamppb.New(wpp.CreatedAt),
-			UpdatedAt: timestamppb.New(wpp.UpdatedAt),
+		res := &proto.WhatsAppQRResponse{
+			Qr: qr,
 		}
 		err = stream.Send(res)
 		if err != nil {
