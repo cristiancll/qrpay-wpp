@@ -1,7 +1,7 @@
 {
   "server": {
-    "name": "qrpay",
-    "port": 50051,
+    "name": "qrpay-wpp",
+    "port": 50052,
     "keys_path": ".keys"
   },
   "db": {
@@ -9,14 +9,6 @@
     "port": 5432,
     "username": "postgres",
     "password": "postgres",
-    "name": "qrpay"
-  },
-  "jwt": {
-    "key_id": "qrpay",
-    "signing_algorithm": "ES256",
-    "expires_in": "30m",
-    "refresh_threshold": "10m",
-    "issuer": "qrpay",
-    "source": "cookies"
+    "name": "qrpay-wpp"
   }
 }
