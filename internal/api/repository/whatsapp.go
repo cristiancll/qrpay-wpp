@@ -27,7 +27,7 @@ func NewWhatsApp(db *pgxpool.Pool) WhatsApp {
 }
 
 func (r *whatsApp) TGetByAccountId(ctx context.Context, tx pgx.Tx, accountUUID string) (*model.WhatsApp, error) {
-	query := `SELECT * FROM whatsapps WHERE account_uuid = $1`
+	query := `SELECT * FROM whatsapps WHERE account_uuid = $1 AND active = true`
 	return tGet[model.WhatsApp](ctx, tx, query, accountUUID)
 }
 
