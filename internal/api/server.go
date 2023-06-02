@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"net"
@@ -21,6 +23,27 @@ type Server struct {
 	services *services
 }
 
+func (s *Server) createDatabaseIfNotExists(err error) error {
+	err = errors.Unwrap(err)
+	if er, ok := err.(*pgconn.PgError); ok {
+		if er.Code == "3D000" {
+			c := configs.Get().Database
+			url := fmt.Sprintf("postgres://%s:%s@%s:%d/?sslmode=disable", c.Username, c.Password, c.Host, c.Port)
+			db, err := pgxpool.New(s.context, url)
+			if err != nil {
+				return fmt.Errorf("unable to connect to database: %v", err)
+			}
+			defer db.Close()
+			query := fmt.Sprintf("CREATE DATABASE %s", c.Name)
+			_, err = db.Exec(s.context, query)
+			if err != nil {
+				return fmt.Errorf("unable to create database: %v", err)
+			}
+		}
+	}
+	return nil
+}
+
 func (s *Server) startDatabase() error {
 	// Create a new context
 	s.context = context.Background()
@@ -36,6 +59,10 @@ func (s *Server) startDatabase() error {
 	// Ping the database to check if it's still alive.
 	err = db.Ping(s.context)
 	if err != nil {
+		err = s.createDatabaseIfNotExists(err)
+		if err == nil {
+			return s.startDatabase()
+		}
 		return fmt.Errorf("unable to ping database: %v", err)
 	}
 

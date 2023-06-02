@@ -9,6 +9,6 @@
     "port": 5432,
     "username": "postgres",
     "password": "postgres",
-    "name": "qrpay-wpp"
+    "name": "wpp"
   }
 }

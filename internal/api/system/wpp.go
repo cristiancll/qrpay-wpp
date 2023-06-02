@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"fmt"
+	_ "github.com/lib/pq"
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/store"

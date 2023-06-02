@@ -6,26 +6,30 @@ import (
 
 type Connections map[string]*Connection
 
-func (c Connections) Get(accountId string) *Connection {
-	return c[accountId]
+func (c Connections) Get(accountUUID string) *Connection {
+	return c[accountUUID]
 }
-func (c Connections) Set(accountId string, connection *Connection) {
-	if accountId != "" && connection != nil {
-		c[accountId] = connection
+func (c Connections) Set(accountUUID string, connection *Connection) {
+	if accountUUID != "" && connection != nil {
+		c[accountUUID] = connection
 	}
 }
 
-type Connection struct {
-	AccountId string
-	Client    *whatsmeow.Client
-	QRCode    string
-	Connected bool
-	Paired    bool
+func (c Connections) Remove(accountUUID string) {
+	delete(c, accountUUID)
 }
 
-func NewConnection(accountId string, client *whatsmeow.Client) *Connection {
+type Connection struct {
+	AccountUUID string
+	Client      *whatsmeow.Client
+	QRCode      string
+	Connected   bool
+	Paired      bool
+}
+
+func NewConnection(accountUUID string, client *whatsmeow.Client) *Connection {
 	return &Connection{
-		AccountId: accountId,
-		Client:    client,
+		AccountUUID: accountUUID,
+		Client:      client,
 	}
 }
