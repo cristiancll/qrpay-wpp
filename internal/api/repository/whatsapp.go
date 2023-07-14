@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	errs "github.com/cristiancll/go-errors"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -38,7 +39,7 @@ func (r *whatsApp) TCreate(ctx context.Context, tx pgx.Tx, whats *model.WhatsApp
 	query := `INSERT INTO whatsapps (uuid, account_uuid, phone, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 	id, err := tCreate(ctx, tx, query, whats.UUID, whats.AccountUUID, whats.Phone, whats.CreatedAt, whats.UpdatedAt)
 	if err != nil {
-		return err
+		return errs.Wrap(err, "")
 	}
 	whats.ID = id
 	return nil

@@ -2,11 +2,13 @@ package handler
 
 import (
 	"context"
+	"errors"
+	errs "github.com/cristiancll/go-errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	proto "qrpay-wpp/internal/api/proto/generated"
 	"qrpay-wpp/internal/api/service"
-	"qrpay-wpp/internal/errors"
+	"qrpay-wpp/internal/errCode"
 	"time"
 )
 
@@ -28,35 +30,35 @@ func NewWhatsApp(s service.WhatsApp) WhatsApp {
 
 func (h *whatsApp) Connect(ctx context.Context, req *proto.WhatsAppConnectRequest) (*proto.WhatsAppConnectResponse, error) {
 	if req.AccountUUID == "" {
-		return nil, status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
+		return nil, errs.New(errors.New(""), errCode.InvalidArgument)
 	}
 	err := h.service.Connect(ctx, req.AccountUUID)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "")
 	}
 	return &proto.WhatsAppConnectResponse{}, nil
 }
 
 func (h *whatsApp) Message(ctx context.Context, req *proto.WhatsAppMessageRequest) (*proto.WhatsAppMessageResponse, error) {
 	if req.AccountUUID == "" {
-		return nil, status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
+		return nil, errs.New(errors.New(""), errCode.InvalidArgument)
 	}
 	if req.To == "" {
-		return nil, status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
+		return nil, errs.New(errors.New(""), errCode.InvalidArgument)
 	}
 	if req.Text == "" || req.Media == nil {
-		return nil, status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
+		return nil, errs.New(errors.New(""), errCode.InvalidArgument)
 	}
 	err := h.service.Message(ctx, req.AccountUUID, req.To, req.Text, req.Media)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "")
 	}
 	return &proto.WhatsAppMessageResponse{}, nil
 }
 
 func (h *whatsApp) QRCode(req *proto.WhatsAppQRRequest, stream proto.WhatsAppService_QRServer) error {
 	if req.AccountUUID == "" {
-		return status.Error(codes.InvalidArgument, errors.UUID_REQUIRED)
+		return errs.New(errors.New(""), errCode.InvalidArgument)
 	}
 	for {
 		if stream.Context().Err() == context.Canceled {
@@ -71,14 +73,14 @@ func (h *whatsApp) QRCode(req *proto.WhatsAppQRRequest, stream proto.WhatsAppSer
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
-			return err
+			return errs.Wrap(err, "")
 		}
 		res := &proto.WhatsAppQRResponse{
 			Qr: qr,
 		}
 		err = stream.Send(res)
 		if err != nil {
-			return err
+			return errs.New(err, errCode.Internal)
 		}
 		time.Sleep(5 * time.Second)
 	}
